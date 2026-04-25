@@ -1,70 +1,248 @@
-# Getting Started with Create React App
+# Tienda de Artesanias
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Aplicativo web simple para una tienda de artesanias. Incluye catalogo de productos, filtro por categorias, carrito de compras, registro de pedidos y carga local de imagenes para productos.
 
-## Available Scripts
+## Tecnologias
 
-In the project directory, you can run:
+- React con Create React App
+- Express
+- MySQL con `mysql2`
+- Multer para subida de imagenes
+- Laragon como entorno local
 
-### `npm start`
+## Funcionalidades
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Listado de productos desde MySQL.
+- Filtro por categoria y busqueda por texto.
+- Carrito con control de cantidades.
+- Registro de cliente y pedido.
+- Descuento de stock al confirmar compra.
+- Subida de imagenes a la carpeta `uploads`.
+- Visualizacion de imagenes mediante rutas guardadas en `productos.imagen_url`.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Requisitos
 
-### `npm test`
+- Node.js
+- npm
+- Laragon con MySQL activo
+- Base de datos local llamada `tienda_artesanias`
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Instalacion
 
-### `npm run build`
+Clona el repositorio e instala dependencias:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Copia el archivo de ejemplo de variables de entorno:
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```bash
+cp .env.example .env
+```
 
-### `npm run eject`
+En Windows PowerShell tambien puedes hacerlo asi:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```powershell
+Copy-Item .env.example .env
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Configura `.env` segun tu entorno local:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=tienda_artesanias
+API_PORT=4000
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+En Laragon, por defecto el usuario suele ser `root` y la contrasena suele estar vacia.
 
-## Learn More
+## Base de datos
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Crea la base de datos:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```sql
+CREATE DATABASE tienda_artesanias;
+USE tienda_artesanias;
+```
 
-### Code Splitting
+Crea las tablas:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```sql
+CREATE TABLE categorias (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion TEXT
+);
 
-### Analyzing the Bundle Size
+CREATE TABLE productos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(200) NOT NULL,
+    descripcion TEXT,
+    precio DECIMAL(10,2) NOT NULL,
+    stock INT NOT NULL DEFAULT 0,
+    imagen_url VARCHAR(500),
+    categoria_id INT,
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (categoria_id) REFERENCES categorias(id) ON DELETE SET NULL
+);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
+    direccion TEXT,
+    telefono VARCHAR(20),
+    creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-### Making a Progressive Web App
+CREATE TABLE carrito (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL DEFAULT 1,
+    fecha_agregado TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
+);
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+CREATE TABLE pedidos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total DECIMAL(10,2) NOT NULL,
+    estado ENUM('pendiente','pagado','enviado','cancelado') DEFAULT 'pendiente',
+    direccion_envio TEXT,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
 
-### Advanced Configuration
+CREATE TABLE detalle_pedido (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    pedido_id INT NOT NULL,
+    producto_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (pedido_id) REFERENCES pedidos(id) ON DELETE CASCADE,
+    FOREIGN KEY (producto_id) REFERENCES productos(id) ON DELETE CASCADE
+);
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Datos de prueba opcionales:
 
-### Deployment
+```sql
+INSERT INTO categorias (nombre, descripcion) VALUES
+('Ceramica', 'Artesanias en barro y ceramica'),
+('Textiles', 'Telares y tejidos'),
+('Madera', 'Tallados en madera');
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+INSERT INTO productos (nombre, descripcion, precio, stock, imagen_url, categoria_id) VALUES
+('Jarron pintado a mano', 'Jarron de ceramica decorativo', 25.99, 10, NULL, 1),
+('Cobija de lana de alpaca', 'Cobija suave y calida', 45.50, 5, NULL, 2),
+('Mascara de madera', 'Artesania tallada en cedro', 32.00, 8, NULL, 3);
+```
 
-### `npm run build` fails to minify
+## Ejecucion
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Levanta backend y frontend al mismo tiempo:
+
+```powershell
+npm.cmd start
+```
+
+En algunos entornos Windows, `npm start` puede fallar por politicas de PowerShell. Usa `npm.cmd start`.
+
+URLs locales:
+
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:4000`
+- Salud de la API: `http://localhost:4000/api/health`
+
+## Scripts disponibles
+
+```bash
+npm run client
+```
+
+Levanta solo React en `http://localhost:3000`.
+
+```bash
+npm run server
+```
+
+Levanta solo la API Express en `http://localhost:4000`.
+
+```bash
+npm run build
+```
+
+Genera la version de produccion en la carpeta `build`.
+
+## Imagenes de productos
+
+Las imagenes se guardan en la carpeta:
+
+```text
+uploads/
+```
+
+La base de datos debe guardar rutas relativas en `productos.imagen_url`, por ejemplo:
+
+```sql
+UPDATE productos
+SET imagen_url = '/uploads/mi-imagen.jpg'
+WHERE id = 1;
+```
+
+No guardes rutas de Windows como:
+
+```text
+C:\laragon\www\tienda-artesanias\uploads\mi-imagen.jpg
+```
+
+El servidor publica las imagenes desde:
+
+```text
+http://localhost:4000/uploads/mi-imagen.jpg
+```
+
+Tambien puedes cambiar la imagen desde la interfaz usando el boton `Cambiar imagen` en cada producto.
+
+## Endpoints principales
+
+```text
+GET  /api/health
+GET  /api/categorias
+GET  /api/productos
+POST /api/productos/:id/imagen
+POST /api/pedidos
+```
+
+## Estructura del proyecto
+
+```text
+tienda-artesanias/
+  server/
+    db.js
+    index.js
+  src/
+    components/
+      Cart.js
+      Header.js
+      ProductList.js
+    App.js
+    App.css
+  uploads/
+  .env.example
+  package.json
+```
+
+## Notas
+
+- La carpeta `uploads` esta preparada para guardar imagenes locales.
+- Los archivos subidos dentro de `uploads` no se versionan en Git.
+- La autenticacion real de usuarios no esta implementada. Actualmente el pedido crea o actualiza un cliente por email con una contrasena temporal interna.
+- Para produccion se recomienda agregar registro/login, hash de contrasenas con bcrypt y validaciones adicionales.

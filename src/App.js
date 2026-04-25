@@ -1,8 +1,16 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Header from './components/Header';
+import ProductList from './components/ProductList';
+
 function App() {
   return (
-    <div>
-      <h1>Bienvenidos a la Tienda de Artesanías</h1>
-    </div>
+    <Router>
+      <Header />
+      <Routes>
+        <Route path="/" element={<ProductList />} />
+        <Route path="/product/:id" element={<h2>Detalle del Producto</h2>} />
+      </Routes>
+    </Router>
   );
 }
 
